@@ -21,6 +21,7 @@ document.getElementById('form_id').addEventListener('submit', function(event) {
 
 function printToConsole(textToPrint) {
     document.getElementById('consola').value += textToPrint + "\n";
+    document.getElementById('consola').scrollTop = document.getElementById('consola').scrollHeight;
 }
 
 function sleep(ms) {
