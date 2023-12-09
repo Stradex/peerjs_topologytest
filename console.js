@@ -1,4 +1,9 @@
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 let _lastInput=null;
+
 document.getElementById('form_id').addEventListener('submit', function(event) {
     // Prevent the default form submission behavior
     event.preventDefault();
@@ -14,19 +19,28 @@ document.getElementById('form_id').addEventListener('submit', function(event) {
     }
   });
 
-  function addInputToConsole(inputText) {
-    _lastInput = inputText;
-    document.getElementById('consola').value += "> " + inputText + "\n";
-  }
-
-function printToConsole(textToPrint) {
-    document.getElementById('consola').value += textToPrint + "\n";
-    document.getElementById('consola').scrollTop = document.getElementById('consola').scrollHeight;
+function scrollConsoleToBottom() {
+  var consola = document.getElementById('consola');
+  requestAnimationFrame(function() {
+    consola.scrollTop = consola.scrollHeight;
+  });
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+ function addInputToConsole(inputText) {
+  _lastInput = inputText;
+  document.getElementById('consola').value += "> " + inputText + "\n";
+  scrollConsoleToBottom();
+}
+
+function printToConsole(textToPrint) {
+  var consola = document.getElementById('consola');
+  consola.value += textToPrint + "\n";
+  scrollConsoleToBottom();
+}
+
+function clearConsole() {
+  document.getElementById('consola').value = "";
+}
 
 async function readInput() {
     _lastInput = null;
