@@ -4,30 +4,6 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-function computeClientsTopology(clients, prevTopology, breadth=2) { //U: Returns {client: clientsToFowardTo[]}
-    let r = {};
-    if (clients.length == 0) return r; 
-    //A: Hay al menos un cliente.
-    let ultimoAsignadoIndex=1;
-    let profunidadActual = 0;
-    while (ultimoAsignadoIndex < clients.length)
-    {
-        let cuantosPadres = Math.pow(breadth, profunidadActual);
-        for (let i=0; i < cuantosPadres; i++) {
-            let estePadreID = clients[ultimoAsignadoIndex-cuantosPadres+i];
-            r[estePadreID] = {
-                    depth: profunidadActual,
-                    forwardTo: clients
-                        .slice(ultimoAsignadoIndex+i*breadth, ultimoAsignadoIndex+(i+1)*breadth)
-            };
-        }
-        
-        ultimoAsignadoIndex += breadth*cuantosPadres;
-        profunidadActual++;
-    }
-    return r;
-}
-
 function emuClients(n) { //U: Generate an array of n clients.
     let r = [];
     for (let i=0; i < n; i++) {

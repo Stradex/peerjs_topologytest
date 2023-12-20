@@ -3,20 +3,64 @@ const LOCAL_PEER_INDEX = -1;
 const P2P_HASH_KEY = "PA2023_";
 
 let _currentPeer = null;
+
 let _userInfo = {
     name: "No Name",
     server: false,
     conn: null,
     peerClients: [] //U: whom to send a message (server topology)
 }
+
 let _clientsToEmu=0;
 let _clients = []; //U: _userInfo for each peer.
+let _connections = {};
+let _serverTopology={};
 
 function netInit() {
     let serverToConnect = getServerPeerIDFromHash();
     if (serverToConnect) {
-        joinServer(serverToConnect, )
+        joinServer(serverToConnect, "no-name");
     }
+}
+
+function netSendData(dataToSend) { //U: Send message to peers by connections arrays.
+    if (!_currentPeer) return;
+    if (!_userInfo.peerClients || !_userInfo.peerClients.forwardTo) return;
+
+    _userInfo.peerClients.forwardTo.forEach(peerID => {
+        if (_connections[peerID]) {
+            _connections[peerID].conn.send(dataToSend);
+        } else {
+            let tmpConn = _currentPeer.connect(peerID, {label: _userInfo.name});
+            tmpConn.on('open', () => {
+                tmpConn.send(dataToSend);
+                _connections[peerID] = {conn: tmpConn};
+            });
+        }
+    });
+}
+
+function clientsToTopologyArr(clientsArray) {
+    let topologyArray = [];
+    for(let i=0; i < clientsArray.length; i++) {
+        if (!clientsArray[i].conn) continue;
+        topologyArray.push(clientsArray[i].conn.peer);
+    }
+    
+    return topologyArray;
+}
+
+function setServerTopology(topologyObj) {
+    _serverTopology = topologyObj;
+}
+
+function getServerTopology() {
+    return _serverTopology;
+}
+
+function updateLocalPeersFromTopology(topologyObj) {
+    if (!_userInfo.conn || !_userInfo.conn.peer || !topologyObj[_userInfo.conn.peer]) return;
+    _userInfo.peerClients = topologyObj[_userInfo.conn.peer];
 }
 
 function setClientsToEmulate(numberOfClients) {
@@ -44,29 +88,25 @@ function emulateNewClient(clientNumber) {
 
 function computeClientsTopology(clients, prevTopology, breadth=2) { //U: Returns {client: clientsToFowardTo[]}
     let r = {};
-    let l = clients.length-1;
-    let depth = parseInt(Math.floor(Math.log(l*breadth-l+breadth)/Math.log(breadth)));
-
-    let index=0;
-    let childIndex=breadth;
-    for (let treeFloor = 1; treeFloor <= depth; treeFloor++) {
-
-        let nextFloorSize = Math.pow(breadth, (treeFloor+1));
-        let currentFloorSize = Math.pow(breadth, treeFloor);
-        let nextFloorChilds = Math.min(nextFloorSize, clients.length-childIndex);
-
-        for (let i=0; i < currentFloorSize; i++, index++) {
-            if (index >= clients.length) break;
-
-            r[index] = {floor: treeFloor, peerClients: []};
-            for (let j=0; j < Math.min(breadth, Math.ceil(nextFloorChilds/currentFloorSize)); j++, childIndex++) {
-                if (childIndex >= clients.length)
-                    break;
-                r[index].peerClients.push(childIndex);
-            }
+    if (clients.length == 0) return r; 
+    //A: Hay al menos un cliente.
+    let ultimoAsignadoIndex=1;
+    let profunidadActual = 0;
+    while (ultimoAsignadoIndex < clients.length)
+    {
+        let cuantosPadres = Math.pow(breadth, profunidadActual);
+        for (let i=0; i < cuantosPadres; i++) {
+            let estePadreID = clients[ultimoAsignadoIndex-cuantosPadres+i];
+            r[estePadreID] = {
+                    depth: profunidadActual,
+                    forwardTo: clients
+                        .slice(ultimoAsignadoIndex+i*breadth, ultimoAsignadoIndex+(i+1)*breadth)
+            };
         }
+        
+        ultimoAsignadoIndex += breadth*cuantosPadres;
+        profunidadActual++;
     }
-    
     return r;
 }
 
@@ -82,44 +122,46 @@ function addClient(userInfo) {
     _clients.push(userInfo);
 }
 
-function addPeerToClient(clientIndex, peerChildIndex) {
-    _clients[clientIndex].peerClients.push(peerChildIndex);
-}
-
-function resetClientsTopology() {
-    for (let i=0; i < _clients.length; i++) {
-        _clients[i].peerClients = [];
-    }
-}
-
-function resetServerTopology() {
-    _userInfo.peerClients = [];
-}
-
-function addPeerToServer(peerChildIndex) {
-    _userInfo.peerClients.push(peerChildIndex);
-}
-
 function createServer(serverName) {
-    clearClients();
+    
     _currentPeer = new Peer(getLocalPeerIDFromHash());
     printToConsole("Creating PeerJS server...");
     _userInfo.name = serverName;
     _userInfo.server = true;
 
+    clearClients();
+    addClient(_userInfo);
+
     //SERVER INIT
     _currentPeer.on('open', (id) => {
         printToConsole(`Server ${serverName} was started`);
         printToConsole(`My peer ID is: ${id}`);
+        _userInfo.conn = {peer: id};
 
         for (let i=0; i < getClientsToEmulate(); i++) { //A: Start emulation
             emulateNewClient(i);
         }
+
+        setInterval(() => {
+            netSendData({
+                tag: 'topology',
+                server: true,
+                data: getServerTopology()
+            });
+        }, 5000);
     });
 
     //CLIENT CONNECTION
     _currentPeer.on('connection', (remoteConn) => {
         printToConsole(`Client connected: ${remoteConn.peer}`);
+       
+        remoteConn.on('open', function() {
+            remoteConn.on('data', function(data) {
+                printToConsole(`Data received: ${data}`);
+            });
+        });
+
+        _connections[remoteConn.peer] = {conn: remoteConn};
 
         addClient({
             name: remoteConn.label,
@@ -128,22 +170,24 @@ function createServer(serverName) {
             peerClients: []
         });
 
-        resetClientsTopology();
-        resetServerTopology();
+        setServerTopology(computeClientsTopology(clientsToTopologyArr(getClients())));
+        updateLocalPeersFromTopology(getServerTopology());
 
-        let clientsTopology = computeClientsTopology(getClients());
-
-        Object.keys(clientsTopology).forEach(index => {
-            if (clientsTopology[index].floor == 1) {
-                addPeerToServer(parseInt(index));
-            }
-            for(let i=0; i < clientsTopology[index].peerClients.length; i++) {
-                addPeerToClient(parseInt(index), parseInt(clientsTopology[index].peerClients[i]));
-            }
-        });
+        printToConsole(`Comm Topology data:\n ${JSON.stringify(getServerTopology(), null, 3)}`);
         printToConsole(`Server data:\n ${JSON.stringify(_userInfo, null, 3)}`);
-        printToConsole(`Clients data:\n ${JSON.stringify(getClients().map(({conn, ...keepAttrs}) => keepAttrs), null, 3)}`);
     });
+}
+
+function processNetMessage(dataReceived) {
+
+    if (!dataReceived || !dataReceived.tag || !dataReceived.data) return;
+
+    switch(dataReceived.tag) {
+        case 'topology':
+            printToConsole(`Topology received: ${dataReceived.data}`);
+            updateLocalPeersFromTopology(dataReceived.data);
+        break;
+    }
 }
 
 function joinServer(peerID, userName) {
@@ -158,7 +202,14 @@ function joinServer(peerID, userName) {
         printToConsole(`Peer created with ID: ${id}`)
         printToConsole(`Trying to connecto to peer ID: ${peerID}`);
         let conn = _currentPeer.connect(peerID, {label: _userInfo.name});
-        
+        _userInfo.conn = {peer: id};
+
+        _currentPeer.on('connection', (remoteConn) => {
+            remoteConn.on('data', function(data) {
+                processNetMessage(data);
+            });
+        });
+
         conn.on('open', () => {
             conn.on('close', function() {
                 printToConsole(`Connection closed with: ${peerID}`);
@@ -166,9 +217,22 @@ function joinServer(peerID, userName) {
             conn.on('error', function(err) {
                 printToConsole(`Error trying to connect with: ${peerID}\nError: ${err}`);
             });
+
+            conn.on('data', function(data) {
+                processNetMessage(data);
+            });
     
             printToConsole(`Connected to server: ${peerID} as ${userName}`);
+
+            setInterval(() => {
+                netSendData({
+                    tag: 'topology',
+                    server: false,
+                    data: getServerTopology()
+                });
+            }, 5000);
         });
+
     });
 }
 
