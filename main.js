@@ -33,11 +33,11 @@ function computeClientsTopology(clients, prevTopology, breadth=2) { //U: Returns
         for (let i=0; i < currentFloorSize; i++, index++) {
             if (index >= clients.length) break;
 
-            r[index] = [];
+            r[index] = {floor: treeFloor, peerClients: []};
             for (let j=0; j < Math.min(breadth, Math.ceil(nextFloorChilds/currentFloorSize)); j++, childIndex++) {
                 if (childIndex >= clients.length)
                     break;
-                r[index].push(childIndex);
+                r[index].peerClients.push(childIndex);
             }
         }
     }
@@ -67,6 +67,14 @@ function resetClientsTopology() {
     }
 }
 
+function resetServerTopology() {
+    _userInfo.peerClients = [];
+}
+
+function addPeerToServer(peerChildIndex) {
+    _userInfo.peerClients.push(peerChildIndex);
+}
+
 function createServer(serverName) {
     clearClients();
     _currentPeer = new Peer();
@@ -92,16 +100,20 @@ function createServer(serverName) {
         });
 
         resetClientsTopology();
+        resetServerTopology();
 
-        clientsTopology = computeClientsTopology(_clients);
+        let clientsTopology = computeClientsTopology(getClients());
 
         Object.keys(clientsTopology).forEach(index => {
-            for(let i=0; i < clientsTopology[index].length; i++) {
-                addPeerToClient(parseInt(index), parseInt(clientsTopology[index][i]));
+            if (clientsTopology[index].floor == 1) {
+                addPeerToServer(parseInt(index));
+            }
+            for(let i=0; i < clientsTopology[index].peerClients.length; i++) {
+                addPeerToClient(parseInt(index), parseInt(clientsTopology[index].peerClients[i]));
             }
         });
-
-        printToConsole(`Clients data:\n ${JSON.stringify(_clients.map(({conn, ...keepAttrs}) => keepAttrs), null, 3)}`);
+        printToConsole(`Server data:\n ${JSON.stringify(_userInfo, null, 3)}`);
+        printToConsole(`Clients data:\n ${JSON.stringify(getClients().map(({conn, ...keepAttrs}) => keepAttrs), null, 3)}`);
     });
 }
 
