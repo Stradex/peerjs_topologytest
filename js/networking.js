@@ -184,7 +184,7 @@ function processNetMessage(dataReceived) {
 
     switch(dataReceived.tag) {
         case 'topology':
-            printToConsole(`Topology received: ${dataReceived.data}`);
+            printToConsole(`Topology received: ${JSON.stringify(dataReceived.data, null, 3)}`);
             updateLocalPeersFromTopology(dataReceived.data);
         break;
     }
