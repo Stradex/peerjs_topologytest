@@ -1,13 +1,7 @@
-//S: Console
-let CMDS = [
-    {name: "join server", usage: "join server <PeerID> <User Name>", func: joinServer},
-    {name: "create server", usage: "create server <Server Name>", func: createServer},
-    {name: "help", usage: "help <Command Name>", func: cmd_help},
-    {name: "clear", usage: "", func: clearConsole}
-];
-
 //S: Server
 const LOCAL_PEER_INDEX = -1;
+const P2P_HASH_KEY = "PA2023_";
+
 let _currentPeer = null;
 let _userInfo = {
     name: "No Name",
@@ -15,7 +9,38 @@ let _userInfo = {
     conn: null,
     peerClients: [] //U: whom to send a message (server topology)
 }
+let _clientsToEmu=0;
 let _clients = []; //U: _userInfo for each peer.
+
+function netInit() {
+    let serverToConnect = getServerPeerIDFromHash();
+    if (serverToConnect) {
+        joinServer(serverToConnect, )
+    }
+}
+
+function setClientsToEmulate(numberOfClients) {
+    _clientsToEmu = numberOfClients;
+}
+function getClientsToEmulate() {
+    return _clientsToEmu;
+} 
+
+function getLocalPeerIDFromHash() {
+    if (!window.location.hash) return P2P_HASH_KEY + "S";
+    return P2P_HASH_KEY + window.location.hash.substring(1).split("&server=")[0];
+}
+function getServerPeerIDFromHash() {
+    if (!window.location.hash) return null;
+    if (!window.location.hash.substring(1).split("&server=")[1]) return null;
+    return window.location.hash.substring(1).split("&server=")[1];
+}
+
+function emulateNewClient(clientNumber) {
+    const url = new URL(location.href)
+    url.hash="";
+    window.open(`${url}#${clientNumber}&server=${getLocalPeerIDFromHash()}`, "_blank");
+}
 
 function computeClientsTopology(clients, prevTopology, breadth=2) { //U: Returns {client: clientsToFowardTo[]}
     let r = {};
@@ -77,7 +102,7 @@ function addPeerToServer(peerChildIndex) {
 
 function createServer(serverName) {
     clearClients();
-    _currentPeer = new Peer();
+    _currentPeer = new Peer(getLocalPeerIDFromHash());
     printToConsole("Creating PeerJS server...");
     _userInfo.name = serverName;
     _userInfo.server = true;
@@ -86,11 +111,15 @@ function createServer(serverName) {
     _currentPeer.on('open', (id) => {
         printToConsole(`Server ${serverName} was started`);
         printToConsole(`My peer ID is: ${id}`);
+
+        for (let i=0; i < getClientsToEmulate(); i++) { //A: Start emulation
+            emulateNewClient(i);
+        }
     });
 
     //CLIENT CONNECTION
     _currentPeer.on('connection', (remoteConn) => {
-        printToConsole(`Client connected: ${remoteConn.label}`);
+        printToConsole(`Client connected: ${remoteConn.peer}`);
 
         addClient({
             name: remoteConn.label,
@@ -119,7 +148,7 @@ function createServer(serverName) {
 
 function joinServer(peerID, userName) {
     clearClients();
-    _currentPeer = new Peer();
+    _currentPeer = new Peer(getLocalPeerIDFromHash());
     _userInfo.server = false;
     _userInfo.name = userName;
 
@@ -141,48 +170,8 @@ function joinServer(peerID, userName) {
             printToConsole(`Connected to server: ${peerID} as ${userName}`);
         });
     });
-
-
-
 }
 
 function createNewPeer() {
     return new Peer();
 }
-
-function cmd_help(args) {
-    if (args.length > 0) {
-        let cmd = CMDS.find(cmd => cmd.name.trim().toLowerCase() === args.trim().toLowerCase());
-        if (typeof cmd !== 'undefined') {
-            printToConsole( `CMD: ${cmd.name}\nUsage: ${cmd.usage}`);
-        } else {
-            printToConsole(`The command ${args.trim().toLowerCase()} was not found. There is no help available.`)
-        }
-    } else {
-        printToConsole("::All CMDS::");
-        CMDS.forEach(cmd => printToConsole( `\tCMD: ${cmd.name}\n\tUsage: ${cmd.usage}`));
-    }
-    
-}
-
-function processCMD(inputText) {
-    let cmd = CMDS.find(cmd => inputText.trim().toLowerCase().startsWith(cmd.name.trim().toLowerCase()));
-
-    if (typeof cmd === 'undefined') {
-        printToConsole(`Command ${inputText.trim().toLowerCase()} not found`);
-        return;
-    }
-    cmd.func(...inputText
-        .trim()
-        .toLowerCase()
-        .replace(cmd.name.trim().toLowerCase(), "")
-        .split(',').map(x => x.trim()));
-}
-
-async function main() {
-    do {
-        processCMD((await readInput()));
-    }while(1);
-}
-
-main();
