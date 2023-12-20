@@ -6,29 +6,25 @@ const assert = require('node:assert');
 
 function computeClientsTopology(clients, prevTopology, breadth=2) { //U: Returns {client: clientsToFowardTo[]}
     let r = {};
-    let l = clients.length-1;
-    let depth = parseInt(Math.floor(Math.log(l*breadth-l+breadth)/Math.log(breadth)));
-
-    let index=0;
-    let childIndex=breadth;
-    for (let treeFloor = 1; treeFloor <= depth; treeFloor++) {
-
-        let nextFloorSize = Math.pow(breadth, (treeFloor+1));
-        let currentFloorSize = Math.pow(breadth, treeFloor);
-        let nextFloorChilds = Math.min(nextFloorSize, clients.length-childIndex);
-
-        for (let i=0; i < currentFloorSize; i++, index++) {
-            if (index >= clients.length) break;
-
-            r[clients[index]] = [];
-            for (let j=0; j < Math.min(breadth, Math.ceil(nextFloorChilds/currentFloorSize)); j++, childIndex++) {
-                if (childIndex >= clients.length)
-                    break;
-                r[clients[index]].push(clients[childIndex]);
-            }
+    if (clients.length == 0) return r; 
+    //A: Hay al menos un cliente.
+    let ultimoAsignadoIndex=1;
+    let profunidadActual = 0;
+    while (ultimoAsignadoIndex < clients.length)
+    {
+        let cuantosPadres = Math.pow(breadth, profunidadActual);
+        for (let i=0; i < cuantosPadres; i++) {
+            let estePadreID = clients[ultimoAsignadoIndex-cuantosPadres+i];
+            r[estePadreID] = {
+                    depth: profunidadActual,
+                    forwardTo: clients
+                        .slice(ultimoAsignadoIndex+i*breadth, ultimoAsignadoIndex+(i+1)*breadth)
+            };
         }
+        
+        ultimoAsignadoIndex += breadth*cuantosPadres;
+        profunidadActual++;
     }
-    
     return r;
 }
 
@@ -68,7 +64,12 @@ test('breadth + 1 clients', (t) => {
       });
 });
 
-console.log("::ORIGINAL ARRAY::");
-console.log(emuClients(15));
-console.log("\n\nTREE")
-console.log(computeClientsTopology(emuClients(15), null, 5));
+test('breadth*5 clients', (t) => {
+    let c = emuClients(2*5);
+    let r = computeClientsTopology(c, null, 2);
+    assert.deepEqual(r, {
+        C0: ["C2"],
+        C1: [],
+        C2: []
+      });
+});
