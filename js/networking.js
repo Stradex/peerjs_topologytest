@@ -35,35 +35,25 @@ function sendDataToPeerID(peerID, dataToSend) {
     }
 }
 
-function netSendData(dataToSend, peerID = null) { //U: Send message to peers by connections arrays.
+function netSendData(dataToSend, netRoute = null) { //U: Send message to peers by connections arrays.
     if (!_currentPeer) return;
-    if (!_userInfo.peerClients || !_userInfo.peerClients.forwardTo) return;
 
-    if (peerID) {
-
-    } else {
+    if (netRoute && netRoute.length > 0) {
+         let peerID = netRoute.shift();
+        if (netRoute.length == 0) {
+            sendDataToPeerID(peerID, dataToSend);
+        } else {
+            printToConsole("Sending forward to: " + peerID);
+            sendDataToPeerID(peerID, {
+                tag: "forward",
+                route: netRoute,
+                data: dataToSend,
+                server: _userInfo.server
+            });
+        }
+    } else if (_userInfo.peerClients && _userInfo.peerClients.forwardTo) {
         _userInfo.peerClients.forwardTo.forEach(pid => sendDataToPeerID(pid, dataToSend));
     }
-}
-
-function getRouteFromTopology(sourcePeer, destPeer, topologyObj) {
-
-    let r = [];
-
-    if (!topologyObj[sourcePeer] || !topologyObj[destPeer]) return r;
-
-    if (topologyObj[sourcePeer].forwardTo.includes(destPeer)) {
-        return [destPeer];
-    }
-
-    //topologyObj[sourcePeer].forwardTo.forEach()
-    /*
-        r[estePadreID] = {
-            depth: profunidadActual,
-            forwardTo: clients
-                .slice(ultimoAsignadoIndex+i*breadth, ultimoAsignadoIndex+(i+1)*breadth)
-        };
-    */
 }
 
 function clientsToTopologyArr(clientsArray) {
@@ -91,6 +81,7 @@ function updateLocalPeersFromTopology(topologyObj) {
         netSendData({
             tag: 'topology',
             server: true,
+            global: true, //if message should be sent to all clients
             data: getServerTopology()
         });
     }, 1);
@@ -121,15 +112,19 @@ function emulateNewClient(clientNumber) {
 
 function computeClientsTopology(clients, prevTopology, breadth=2) { //U: Returns {client: clientsToFowardTo[]}
     let r = {};
-    if (clients.length == 0) return r; 
-    //A: Hay al menos un cliente.
+
+    if (clients.length == 0) return r;
+    //A: Hay al menos un cliente
+
     let ultimoAsignadoIndex=1;
     let profunidadActual = 0;
-    while (ultimoAsignadoIndex < clients.length)
+    while ((ultimoAsignadoIndex - Math.pow(breadth, profunidadActual)) < clients.length)
     {
         let cuantosPadres = Math.pow(breadth, profunidadActual);
         for (let i=0; i < cuantosPadres; i++) {
             let estePadreID = clients[ultimoAsignadoIndex-cuantosPadres+i];
+            if (!estePadreID)
+                break;
             r[estePadreID] = {
                     depth: profunidadActual,
                     forwardTo: clients
@@ -181,7 +176,7 @@ function createServer(serverName) {
                 server: true,
                 data: getServerTopology()
             });
-        }, 5000);
+        }, 25000);
     });
 
     //CLIENT CONNECTION
@@ -190,7 +185,7 @@ function createServer(serverName) {
        
         remoteConn.on('open', function() {
             remoteConn.on('data', function(data) {
-                printToConsole(`Data received: ${data}`);
+                processNetMessage(data);
             });
         });
 
@@ -213,14 +208,23 @@ function createServer(serverName) {
 
 function processNetMessage(dataReceived) {
 
-    if (!dataReceived || !dataReceived.tag || !dataReceived.data) return;
+    if (!dataReceived || !dataReceived.tag) return;
+
+    if (dataReceived.global) { //A: Spread data to children peers in the tree
+        netSendData(dataReceived);
+    }
 
     switch(dataReceived.tag) {
         case 'topology':
-            printToConsole(`Topology received: ${JSON.stringify(dataReceived.data, null, 3)}`);
-            printToConsole(new Date() + "");
             setServerTopology(dataReceived.data);
             updateLocalPeersFromTopology(dataReceived.data);
+        break;
+        case 'forward':
+            printToConsole(`Forwarding message: ${dataReceived.route}`);
+            netSendData(dataReceived.data, dataReceived.route);
+        break;
+        case 'msg':
+            printToConsole(`${dataReceived.from}: ${dataReceived.msg}`);
         break;
     }
 }
@@ -258,14 +262,6 @@ function joinServer(peerID, userName) {
             });
     
             printToConsole(`Connected to server: ${peerID} as ${userName}`);
-
-            setInterval(() => {
-                netSendData({
-                    tag: 'topology',
-                    server: false,
-                    data: getServerTopology()
-                });
-            }, 5000);
         });
 
     });
