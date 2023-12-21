@@ -1,13 +1,21 @@
 //S: Console
 let CMDS = [
-    {name: "join server", usage: "join server <PeerID> <User Name>", func: joinServer},
+    {name: "join server", usage: "join server <PeerID>, <User Name>", func: joinServer},
     {name: "create server", usage: "create server <Server Name>", func: createServer},
     {name: "local peer", usage: "", func: cmd_get_local_peer},
     {name: "server peer", usage: "", func: cmd_get_server_peer},
     {name: "test server", usage: "test server <Number of Clients>", func:cmd_test_server},
+    {name: "send", usage: "send <message>, <peer ID>", func:cmd_send_message},
     {name: "help", usage: "help <Command Name>", func: cmd_help},
     {name: "clear", usage: "", func: clearConsole}
 ];
+
+function cmd_send_message(args)
+{
+    if (args.trim().length < "") return;
+    
+
+}
 
 function cmd_test_server(numberOfClients) {
     setClientsToEmulate(parseInt(numberOfClients));

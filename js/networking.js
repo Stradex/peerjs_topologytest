@@ -23,21 +23,47 @@ function netInit() {
     }
 }
 
-function netSendData(dataToSend) { //U: Send message to peers by connections arrays.
+function sendDataToPeerID(peerID, dataToSend) {
+    if (_connections[peerID]) {
+        _connections[peerID].conn.send(dataToSend);
+    } else {
+        let tmpConn = _currentPeer.connect(peerID, {label: _userInfo.name});
+        tmpConn.on('open', () => {
+            tmpConn.send(dataToSend);
+            _connections[peerID] = {conn: tmpConn};
+        });
+    }
+}
+
+function netSendData(dataToSend, peerID = null) { //U: Send message to peers by connections arrays.
     if (!_currentPeer) return;
     if (!_userInfo.peerClients || !_userInfo.peerClients.forwardTo) return;
 
-    _userInfo.peerClients.forwardTo.forEach(peerID => {
-        if (_connections[peerID]) {
-            _connections[peerID].conn.send(dataToSend);
-        } else {
-            let tmpConn = _currentPeer.connect(peerID, {label: _userInfo.name});
-            tmpConn.on('open', () => {
-                tmpConn.send(dataToSend);
-                _connections[peerID] = {conn: tmpConn};
-            });
-        }
-    });
+    if (peerID) {
+
+    } else {
+        _userInfo.peerClients.forwardTo.forEach(pid => sendDataToPeerID(pid, dataToSend));
+    }
+}
+
+function getRouteFromTopology(sourcePeer, destPeer, topologyObj) {
+
+    let r = [];
+
+    if (!topologyObj[sourcePeer] || !topologyObj[destPeer]) return r;
+
+    if (topologyObj[sourcePeer].forwardTo.includes(destPeer)) {
+        return [destPeer];
+    }
+
+    //topologyObj[sourcePeer].forwardTo.forEach()
+    /*
+        r[estePadreID] = {
+            depth: profunidadActual,
+            forwardTo: clients
+                .slice(ultimoAsignadoIndex+i*breadth, ultimoAsignadoIndex+(i+1)*breadth)
+        };
+    */
 }
 
 function clientsToTopologyArr(clientsArray) {
