@@ -87,6 +87,13 @@ function getServerTopology() {
 function updateLocalPeersFromTopology(topologyObj) {
     if (!_userInfo.conn || !_userInfo.conn.peer || !topologyObj[_userInfo.conn.peer]) return;
     _userInfo.peerClients = topologyObj[_userInfo.conn.peer];
+    setTimeout(() => {
+        netSendData({
+            tag: 'topology',
+            server: true,
+            data: getServerTopology()
+        });
+    }, 1);
 }
 
 function setClientsToEmulate(numberOfClients) {
@@ -211,6 +218,7 @@ function processNetMessage(dataReceived) {
     switch(dataReceived.tag) {
         case 'topology':
             printToConsole(`Topology received: ${JSON.stringify(dataReceived.data, null, 3)}`);
+            printToConsole(new Date() + "");
             setServerTopology(dataReceived.data);
             updateLocalPeersFromTopology(dataReceived.data);
         break;
