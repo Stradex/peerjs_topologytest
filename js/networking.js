@@ -226,6 +226,10 @@ function processNetMessage(dataReceived) {
         case 'msg':
             printToConsole(`${dataReceived.from}: ${dataReceived.msg}`);
         break;
+        case 'audio':
+            printToConsole(`Receiving audio from: ${dataReceived.from}`);
+            callReceivedAudioData(dataReceived.audioBlob);
+        break;
     }
 }
 

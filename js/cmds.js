@@ -6,9 +6,27 @@ let CMDS = [
     {name: "server peer", usage: "", func: cmd_get_server_peer},
     {name: "test server", usage: "test server <Number of Clients>", func:cmd_test_server},
     {name: "send", usage: "send <message>, <route of peers separated by comma>", func:cmd_send_message},
+    {name: "start call", usage: "start call <route of peers separated by comma>", func:cmd_call_start},
+    {name: "end call", usage: "end call <peers to end call with>", func:cmd_call_end},
     {name: "help", usage: "help <Command Name>", func: cmd_help},
     {name: "clear", usage: "", func: clearConsole}
 ];
+
+function cmd_call_start() {
+    
+    let route = (Array.prototype.slice.call(arguments))
+        .filter(x => x.trim().length > 0)
+        .map(x => P2P_HASH_KEY + x.trim());
+
+    startCall(route);
+}
+function cmd_call_end() {
+    let peersToEndCallWith = (Array.prototype.slice.call(arguments))
+        .filter(x => x.trim().length > 0)
+        .map(x => P2P_HASH_KEY + x.trim());
+
+    endCall(peersToEndCallWith);
+}
 
 function cmd_send_message(message)
 {
