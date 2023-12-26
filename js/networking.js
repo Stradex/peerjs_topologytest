@@ -29,12 +29,6 @@ function sendDataToPeerID(peerID, dataToSend) {
     } else {
         let tmpConn = _currentPeer.connect(peerID, {label: _userInfo.name});
         tmpConn.on('open', () => {
-            _currentPeer.on('connection', (remoteConn) => {
-                remoteConn.on('data', function(data) {
-                    processNetMessage(data);
-                });
-            });
-
             tmpConn.send(dataToSend);
             _connections[peerID] = {conn: tmpConn};
         });
