@@ -16,14 +16,14 @@ function cmd_call_start() {
     
     let route = (Array.prototype.slice.call(arguments))
         .filter(x => x.trim().length > 0)
-        .map(x => P2P_HASH_KEY + x.trim());
+        .map(x => P2P_HASH_KEY + x.trim().toUpperCase());
 
     startCall(route);
 }
 function cmd_call_end() {
     let peersToEndCallWith = (Array.prototype.slice.call(arguments))
         .filter(x => x.trim().length > 0)
-        .map(x => P2P_HASH_KEY + x.trim());
+        .map(x => P2P_HASH_KEY + x.trim().toUpperCase());
 
     endCall(peersToEndCallWith);
 }
@@ -32,7 +32,9 @@ function cmd_send_message(message)
 {
     if (message.trim().length == 0) return;
     
-    let route = (Array.prototype.slice.call(arguments)).slice(1, arguments.length).map(x => P2P_HASH_KEY + x);
+    let route = (Array.prototype.slice.call(arguments))
+        .slice(1, arguments.length)
+        .map(x => P2P_HASH_KEY + x.trim().toUpperCase());
 
     netSendData({
         tag: 'msg',

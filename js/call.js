@@ -15,10 +15,10 @@ function callMediaRecorderStop(mediaRec) {
                 audioBlob: base64Blob
             });
         } else { //local calls are not working fine, only global calls. 
+            printToConsole(`Sending audio: ${JSON.stringify(_callRoutes)}`);
             _callRoutes.forEach(route => {
 
                 if (!route || route.length == 0) return;
-
                 netSendData({
                     tag: 'audio',
                     global: false,
@@ -26,6 +26,7 @@ function callMediaRecorderStop(mediaRec) {
                     audioBlob: base64Blob
                 }, route);
             });
+            printToConsole(`Audio was sent: ${JSON.stringify(_callRoutes)}`);
         }
 
         });
@@ -35,11 +36,11 @@ function callMediaRecorderStop(mediaRec) {
 }
 
 function callReceivedAudioData(audioBlob64) {
-    printToConsole("B64 Blobl: " + audioBlob64);
+    printToConsole("B64 Blob: " + audioBlob64);
     let audioBlob = b64toBlob(audioBlob64, "audio/ogg; codecs=opus");
     let audioUrl = URL.createObjectURL(audioBlob);
     printToConsole(`Playing received audio: ${audioBlob.size} - ${audioUrl}`);
-    setTimeout(() => { var a = new Audio(audioUrl); a.play(); },10);
+    setTimeout(() => { var a = new Audio(audioUrl); a.play(); },5);
 }
 
 function callOnSilence(mediaRec) {

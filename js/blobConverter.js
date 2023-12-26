@@ -1,4 +1,3 @@
-//SEE: https://stackoverflow.com/questions/18650168/convert-blob-to-base64
 function blobToBase64(blob, callback) {
   var reader = new FileReader();
   reader.onload = function () {
@@ -29,12 +28,4 @@ const b64toBlob = (b64Data, contentType='', sliceSize=512) => {
       
     const blob = new Blob(byteArrays, {type: contentType});
     return blob;
-  }
-  
-  /*
-  const contentType = 'image/png';
-  const b64Data = 'iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==';
-  
-  const blob = b64toBlob(b64Data, contentType);
-  const blobUrl = URL.createObjectURL(blob);
-  */
+}

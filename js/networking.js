@@ -29,6 +29,12 @@ function sendDataToPeerID(peerID, dataToSend) {
     } else {
         let tmpConn = _currentPeer.connect(peerID, {label: _userInfo.name});
         tmpConn.on('open', () => {
+            _currentPeer.on('connection', (remoteConn) => {
+                remoteConn.on('data', function(data) {
+                    processNetMessage(data);
+                });
+            });
+
             tmpConn.send(dataToSend);
             _connections[peerID] = {conn: tmpConn};
         });
@@ -39,7 +45,8 @@ function netSendData(dataToSend, netRoute = null) { //U: Send message to peers b
     if (!_currentPeer) return;
 
     if (netRoute && netRoute.length > 0) {
-         let peerID = netRoute.shift();
+        netRoute = netRoute.map(x => x); //create local copy.
+        let peerID = netRoute.shift();
         if (netRoute.length == 0) {
             sendDataToPeerID(peerID, dataToSend);
         } else {

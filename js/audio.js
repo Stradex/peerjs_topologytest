@@ -12,8 +12,8 @@ function mediaRecorderStart(stream) {
 		return;
 	}
 
-	//VER: https://github.com/mdn/dom-examples/tree/main/media/web-dictaphone
-	//VER: https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder
+	//SEE: https://github.com/mdn/dom-examples/tree/main/media/web-dictaphone
+	//SEE: https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder
 	mediaRecorder= new MediaRecorder(stream);
 
 	var mediaRecorderChunks= []; //U: guardar a medida que graba
