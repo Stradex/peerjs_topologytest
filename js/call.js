@@ -36,7 +36,6 @@ function callMediaRecorderStop(mediaRec) {
 }
 
 function callReceivedAudioData(audioBlob64) {
-    printToConsole("B64 Blob: " + audioBlob64);
     let audioBlob = b64toBlob(audioBlob64, "audio/ogg; codecs=opus");
     let audioUrl = URL.createObjectURL(audioBlob);
     printToConsole(`Playing received audio: ${audioBlob.size} - ${audioUrl}`);
