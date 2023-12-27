@@ -2,9 +2,18 @@
 
 //============================================================
 //S: mediaRecorder
+
+const AUDIO_SETTINGS = {
+  channels: 1,
+  codec: "audio/ogg; codecs=opus",
+  sampleSize: 8,
+  sampleRate: 8192
+}
+
 mediaRecorder = null;
 mediaRecorderAudioURL = null; //U: el resultado
 inputListening = false;
+
 let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 function mediaRecorderStart(stream, datareceived_ms=200) {
@@ -20,7 +29,7 @@ function mediaRecorderStart(stream, datareceived_ms=200) {
 	var mediaRecorderChunks= []; //U: guardar a medida que graba
 
 	mediaRecorder.onstop = (e) => {
-		let blob = new Blob(mediaRecorderChunks, { type: "audio/ogg; codecs=opus" });
+		let blob = new Blob(mediaRecorderChunks, { type: AUDIO_SETTINGS.codec });
     let audioUrl = URL.createObjectURL(blob);
     mediaRecorder.onStopCallback(audioUrl, blob, mediaRecorderChunks);
     mediaRecorder = null;
@@ -31,18 +40,16 @@ function mediaRecorderStart(stream, datareceived_ms=200) {
 	mediaRecorder.ondataavailable = (e) => {
     let headerBlob = (mediaRecorderChunks.length == 0);
     mediaRecorderChunks.push(e.data);
-    let blob = new Blob([e.data], { type: "audio/ogg; codecs=opus" });
+    let blob = new Blob([e.data], { type: AUDIO_SETTINGS.codec });
     mediaRecorder.onAudioChunkUpdated(blob, mediaRecorderChunks, headerBlob);
 	};
 
 	mediaRecorder.start(datareceived_ms);
-	console.log("Grabando");
 }
 
 function mediaRecorderStop(mediaRec) {
 	if (mediaRec) {
     mediaRec.onStopCallback = (audioURL, blob, audioChunks) => {
-      printToConsole(`Grabacion terminada, ${blob.size}, ${audioURL}`);
       setTimeout(() => { var a = new Audio(audioURL); a.play(); },200); //TODO: usar promise con grabar
     }
 		mediaRec.stop();
@@ -62,10 +69,10 @@ function conseguirNuestroAudioYVideo(e, soloAudio) {
 	else {
 		if (supported_constraints.frameRate) { opts.video.frameRate= 1; }
 	}
-	if (supported_constraints.channelCount) { opts.audio.channelCount= 1; }
+	if (supported_constraints.channelCount) { opts.audio.channelCount= AUDIO_SETTINGS.channels; }
 	if (supported_constraints.echoCancellation) { opts.audio.echoCancellation= true ; }
-	if (supported_constraints.sampleSize) { opts.audio.sampleSize= 8; }
-	if (supported_constraints.sampleRate) { opts.audio.sampleRate= { ideal: 8192}; }
+	if (supported_constraints.sampleSize) { opts.audio.sampleSize= AUDIO_SETTINGS.sampleSize; }
+	if (supported_constraints.sampleRate) { opts.audio.sampleRate= { ideal: AUDIO_SETTINGS.sampleRate}; }
 	if (supported_constraints.noiseSuppression) { opts.audio.noiseSuppression = true; }
 
 	return new Promise( (on_ok, on_err) => navigator.getUserMedia(opts, on_ok, on_err));
@@ -86,7 +93,7 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSound
 
   const data = new Uint8Array(analyser.frequencyBinCount); // will hold our data
   let silence_start = performance.now();
-  let triggered = false; // trigger only once per silence event
+  let triggered = false; // trigger only once per silence even
 
   function loop(time) {
 
@@ -101,6 +108,7 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSound
         }
       silence_start = time; // set it to now
     }
+
     if (!triggered && time - silence_start > silence_delay) {
       onSoundEnd(mediaRecorder, stream);
       triggered = true;

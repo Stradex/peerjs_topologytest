@@ -7,7 +7,6 @@ let _callRoutes = []; //array with routes to send data to each client.
 let _globalCall = false;
 let _audioPacketsQueue = [];
 let _lastHeaderBlob = null;
-let _firstNetChunk = false;
 
 function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
     blobToBase64(blob, (base64Data) => {
@@ -47,9 +46,6 @@ function callReceivedAudioData(audioBlob64, isHeaderBlob) {
     _audioPacketsQueue.push( {blob: audioBlob, isHeader: isHeaderBlob});
     if (isHeaderBlob) {
         lastHeaderBlob = {blob: audioBlob, isHeader: isHeaderBlob};
-        if (!_firstNetChunk) {
-            _firstNetChunk = {blob: audioBlob, isHeader: isHeaderBlob};
-        }
     }
 }
 
@@ -112,7 +108,7 @@ setInterval(() => {
         }
 
         audioChunksToPlay = audioChunksToPlay.filter(x => !x.isHeaderBlob);
-        audioChunksToPlay.unshift(lastHeaderBlob);
+        audioChunksToPlay.unshift(startChunk);
 
 		let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: "audio/ogg; codecs=opus" });
         
