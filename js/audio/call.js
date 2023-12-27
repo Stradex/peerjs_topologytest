@@ -9,7 +9,9 @@ let _audioPacketsQueue = [];
 let _lastHeaderBlob = null;
 
 function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
+    let currentDBAverage = Math.round(getCurrentdBAverage()*100.0);
     blobToBase64(blob, (base64Data) => {
+        
         if (_globalCall) {
             netSendData({
                 tag: 'audio',
@@ -17,9 +19,10 @@ function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
                 from: getLocalPeerIDFromHash(),
                 audioBlob: base64Data,
                 headerBlob: isHeaderBlob,
+                dbAverage: currentDBAverage
             });
         } else {
-            printToConsole(`Sending audio part: ${JSON.stringify(_callRoutes)}`);
+            //printToConsole(`Sending audio part: ${JSON.stringify(_callRoutes)}`);
             _callRoutes.forEach(route => {
 
                 if (!route || route.length == 0) return;
@@ -28,7 +31,8 @@ function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
                     global: false,
                     from: getLocalPeerIDFromHash(),
                     audioBlob: base64Data,
-                    headerBlob: isHeaderBlob 
+                    headerBlob: isHeaderBlob,
+                    dbAverage: currentDBAverage
                 }, route);
             });
         }
@@ -41,21 +45,24 @@ function callMediaRecorderStop(mediaRec) {
 	mediaRec.stop();
 }
 
-function callReceivedAudioData(audioBlob64, isHeaderBlob) {
+function callReceivedAudioData(audioBlob64, isHeaderBlob, packetdBAverage) {
     let audioBlob = b64toBlob(audioBlob64, "audio/ogg; codecs=opus");
-    _audioPacketsQueue.push( {blob: audioBlob, isHeader: isHeaderBlob});
+    _audioPacketsQueue.push( {blob: audioBlob, isHeader: isHeaderBlob, dBAverage: packetdBAverage});
+
     if (isHeaderBlob) {
-        lastHeaderBlob = {blob: audioBlob, isHeader: isHeaderBlob};
+        if (!_lastHeaderBlob || _lastHeaderBlob.dBAverage > packetdBAverage) {
+            _lastHeaderBlob = {blob: audioBlob, isHeader: isHeaderBlob, dBAverage: packetdBAverage};
+        }
     }
 }
 
 function callOnSilence(mediaRec) {
-    printToConsole('silence');
+    //printToConsole('silence');
     callMediaRecorderStop(mediaRec);
 }
   
 function callOnSpeak(mediaRec, stream) {
-    printToConsole('speaking');
+    //printToConsole('speaking');
     mediaRecorderStart(stream, CALL_NET_SETTINGS.packet_ms);
 }
 
@@ -91,6 +98,7 @@ function endCall(peersToEndCallWith = []) {
     }
 }
 
+//A: Handle the _audioPacketsQueue while receiving audio packets.
 setInterval(() => {
     if (_audioPacketsQueue.length == 0) return;
 
@@ -103,8 +111,8 @@ setInterval(() => {
         }
 
         let startChunk = audioChunksToPlay[0];
-        if (!audioChunksToPlay[0].isHeaderBlob && lastHeaderBlob) {
-            startChunk = lastHeaderBlob;
+        if (!audioChunksToPlay[0].isHeaderBlob && _lastHeaderBlob) {
+            startChunk = _lastHeaderBlob;
         }
 
         audioChunksToPlay = audioChunksToPlay.filter(x => !x.isHeaderBlob);
@@ -113,11 +121,13 @@ setInterval(() => {
 		let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: "audio/ogg; codecs=opus" });
         
         const arrayBuffer = new FileReader();
+
         arrayBuffer.onloadend = () => {
             audioContext.decodeAudioData(arrayBuffer.result, (buffer) => {
               playAudioBuffer(buffer);
             });
         };
+
         arrayBuffer.readAsArrayBuffer(concatChunks);
     } 
 }, 1);

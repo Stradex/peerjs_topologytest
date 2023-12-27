@@ -7,14 +7,26 @@ const AUDIO_SETTINGS = {
   channels: 1,
   codec: "audio/ogg; codecs=opus",
   sampleSize: 8,
-  sampleRate: 8192
+  sampleRate: 8192,
+  dBSampleSize: 10
 }
+let _currentInputAudioData = {
+  dbAverage: 0
+};
 
 mediaRecorder = null;
 mediaRecorderAudioURL = null; //U: el resultado
 inputListening = false;
 
 let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function setCurrentdBAverage(dbAverage) {
+  _currentInputAudioData.dbAverage = dbAverage;
+}
+
+function getCurrentdBAverage() {
+  return _currentInputAudioData.dbAverage;
+} 
 
 function mediaRecorderStart(stream, datareceived_ms=200) {
 	if (mediaRecorder!=null) {
@@ -94,6 +106,7 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSound
   const data = new Uint8Array(analyser.frequencyBinCount); // will hold our data
   let silence_start = performance.now();
   let triggered = false; // trigger only once per silence even
+  let dbLastData = [];
 
   function loop(time) {
 
@@ -101,11 +114,28 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSound
 
     requestAnimationFrame(loop); // we'll loop every 60th of a second to check
     analyser.getByteFrequencyData(data); // get current data
+
     if (data.some(v => v)) { // if there is data above the given db limit
+
+      dbLastData.push(data);
+      if (dbLastData.length >= AUDIO_SETTINGS.dBSampleSize) {
+        dbLastData.shift();
+      }
+      
+      let sumOfDb = 0;
+      let numOfDb = 0;
+      dbLastData.forEach(dataArray => dataArray.forEach(db => {
+        numOfDb++;
+        sumOfDb+=db;
+      }));
+
+      setCurrentdBAverage(sumOfDb / numOfDb);
+
       if(triggered){
         triggered = false;
         onSoundStart(mediaRecorder, stream);
-        }
+      }
+      
       silence_start = time; // set it to now
     }
 
@@ -122,12 +152,12 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSound
 }
 
 function onSilence(mediaRec) {
-  printToConsole('silence');
+  //printToConsole('silence');
 	mediaRecorderStop(mediaRec);
 }
 
 function onSpeak(mediaRec, stream) {
-   printToConsole('speaking');
+   //printToConsole('speaking');
    mediaRecorderStart(stream);
 }
 
