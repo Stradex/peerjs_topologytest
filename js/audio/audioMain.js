@@ -64,6 +64,7 @@ function conseguirNuestroAudioYVideo(e, soloAudio) {
 	if (supported_constraints.echoCancellation) { opts.audio.echoCancellation= true ; }
 	if (supported_constraints.sampleSize) { opts.audio.sampleSize= 8; }
 	if (supported_constraints.sampleRate) { opts.audio.sampleRate= { ideal: 8192}; }
+	if (supported_constraints.noiseSuppression) { opts.audio.noiseSuppression = true; }
 
 	return new Promise( (on_ok, on_err) => navigator.getUserMedia(opts, on_ok, on_err));
 }
