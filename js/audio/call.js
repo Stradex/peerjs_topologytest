@@ -1,21 +1,18 @@
 let _callRoutes = []; //array with routes to send data to each client.
 let _globalCall = false;
 
-function callMediaRecorderStop(mediaRec) {
-	if (!mediaRec) return;
-
-    mediaRec.onStopCallback = (audioURL, blob, _audioChunks) => {
-        blobToBase64(blob, (base64Blob) => {
-
+function callOnDataAvailable(e, audioChunks) {
+    blobToBase64(e.data, (base64Data) => {
         if (_globalCall) {
             netSendData({
                 tag: 'audio',
                 global: true,
                 from: getLocalPeerIDFromHash(),
-                audioBlob: base64Blob
+                audioBlob: base64Data
             });
-        } else { //local calls are not working fine, only global calls. 
-            printToConsole(`Sending audio: ${JSON.stringify(_callRoutes)}`);
+        } else {
+            printToConsole(`Sending audio part: ${JSON.stringify(_callRoutes)}`);
+            printToConsole(base64Data);
             _callRoutes.forEach(route => {
 
                 if (!route || route.length == 0) return;
@@ -23,14 +20,15 @@ function callMediaRecorderStop(mediaRec) {
                     tag: 'audio',
                     global: false,
                     from: getLocalPeerIDFromHash(),
-                    audioBlob: base64Blob
+                    audioBlob: base64Data
                 }, route);
             });
-            printToConsole(`Audio was sent: ${JSON.stringify(_callRoutes)}`);
         }
+    });
+}
 
-        });
-    };
+function callMediaRecorderStop(mediaRec) {
+	if (!mediaRec) return;
 
 	mediaRec.stop();
 }
@@ -63,7 +61,8 @@ function startCall(callRoute=[]) {
         printToConsole(`Starting call with route ${JSON.stringify(callRoute)}`);
         _callRoutes.push(callRoute);
     }
-    startRecordingAudio(callOnSilence, callOnSpeak);
+    startRecordingAudio(callOnSilence, callOnSpeak, callOnDataAvailable);
+
 }
 
 function endCall(peersToEndCallWith = []) {

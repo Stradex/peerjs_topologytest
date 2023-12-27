@@ -25,9 +25,12 @@ function mediaRecorderStart(stream) {
     mediaRecorder = null;
 	}
   mediaRecorder["onStopCallback"] = () => { };
+  mediaRecorder["onAudioChunkUpdated"] = () => {};
 
 	mediaRecorder.ondataavailable = (e) => {
+
     mediaRecorderChunks.push(e.data);
+    mediaRecorder.onAudioChunkUpdated(e, mediaRecorderChunks);
 	};
 
 	mediaRecorder.start();
@@ -71,7 +74,7 @@ function conseguirNuestroAudioYVideo(e, soloAudio) {
 
 //VER: https://github.com/webrtc/samples/blob/gh-pages/src/content/getusermedia/volume/js/soundmeter.js
 
-function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, silence_delay = 500, min_decibels = -80) {
+function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSoundStream = _=>{}, silence_delay = 500, min_decibels = -80) {
   const ctx = new AudioContext();
   const analyser = ctx.createAnalyser();
   const streamNode = ctx.createMediaStreamSource(stream);
@@ -99,6 +102,10 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, silence
       onSoundEnd(mediaRecorder, stream);
       triggered = true;
     }
+
+    if (mediaRecorder) {
+      mediaRecorder.onAudioChunkUpdated = onSoundStream;
+    }
   }
   loop();
 }
@@ -113,7 +120,7 @@ function onSpeak(mediaRec, stream) {
    mediaRecorderStart(stream);
 }
 
-function startRecordingAudio(onSilenceFunc, onSpeakFunc) {
+function startRecordingAudio(onSilenceFunc, onSpeakFunc, onReceiveDataFunc = _=>{}) {
 
     if (inputListening) return;
 
@@ -121,9 +128,11 @@ function startRecordingAudio(onSilenceFunc, onSpeakFunc) {
     conseguirNuestroAudioYVideo(null,true)
     .then(stream => {
           window.xs= stream;
-          detectSilence(stream, onSilenceFunc, onSpeakFunc, 500, -70);
+          detectSilence(stream, onSilenceFunc, onSpeakFunc, onReceiveDataFunc, 500, -70);
           // do something else with the stream
     }).catch(e=>printToConsole(e));
+
+    return;
 }
 
 function stopRecordingAudio() {
