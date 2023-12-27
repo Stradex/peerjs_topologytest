@@ -22,7 +22,6 @@ function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
                 dbAverage: currentDBAverage
             });
         } else {
-            //printToConsole(`Sending audio part: ${JSON.stringify(_callRoutes)}`);
             _callRoutes.forEach(route => {
 
                 if (!route || route.length == 0) return;
@@ -126,19 +125,18 @@ setInterval(() => {
             audioChunksToPlay = audioChunksToPlay.filter(x => !x.isHeaderBlob);
             audioChunksToPlay.unshift(startChunk);
 
+            _audioPacketsQueue[peerId] = peerAudioPackets;
+
             let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: "audio/ogg; codecs=opus" });
             
             const arrayBuffer = new FileReader();
 
             arrayBuffer.onloadend = () => {
                 audioContext.decodeAudioData(arrayBuffer.result, (buffer) => {
-                    printToConsole("Playing audio");
                     playAudioBuffer(buffer, delay);
                 });
             };
             arrayBuffer.readAsArrayBuffer(concatChunks);
-
-            _audioPacketsQueue[peerId] = peerAudioPackets;
         }
         delay++;
     });

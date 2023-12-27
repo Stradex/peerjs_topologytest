@@ -105,7 +105,7 @@ function detectSilence(stream, onSoundEnd = _=>{}, onSoundStart = _=>{}, onSound
 
   const data = new Uint8Array(analyser.frequencyBinCount); // will hold our data
   let silence_start = performance.now();
-  let triggered = false; // trigger only once per silence even
+  let triggered = true; // trigger only once per silence even
   let dbLastData = [];
 
   function loop(time) {
@@ -187,6 +187,6 @@ function playAudioBuffer(buffer, delay=1) {
 
   source.connect(audioContext.destination);
   source.onended = () => {
-    printToConsole('Playback ended');
+    //printToConsole('Playback ended');
   };
 }
