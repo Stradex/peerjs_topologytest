@@ -5,7 +5,7 @@ const CALL_NET_SETTINGS = {
 
 let _callRoutes = []; //array with routes to send data to each client.
 let _globalCall = false;
-let _audioPacketsQueue = [];
+let _audioPacketsQueue = {}; //array of audio packets peer each peerID
 let _lastHeaderBlob = null;
 
 function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
@@ -45,9 +45,12 @@ function callMediaRecorderStop(mediaRec) {
 	mediaRec.stop();
 }
 
-function callReceivedAudioData(audioBlob64, isHeaderBlob, packetdBAverage) {
+function callReceivedAudioData(audioBlob64, isHeaderBlob, packetdBAverage, fromPeer) {
     let audioBlob = b64toBlob(audioBlob64, "audio/ogg; codecs=opus");
-    _audioPacketsQueue.push( {blob: audioBlob, isHeader: isHeaderBlob, dBAverage: packetdBAverage});
+    if (!_audioPacketsQueue[fromPeer]) {
+        _audioPacketsQueue[fromPeer] = [];
+    }
+    _audioPacketsQueue[fromPeer].push( {blob: audioBlob, isHeader: isHeaderBlob, dBAverage: packetdBAverage});
 
     if (isHeaderBlob) {
         if (!_lastHeaderBlob || _lastHeaderBlob.dBAverage > packetdBAverage) {
@@ -100,34 +103,43 @@ function endCall(peersToEndCallWith = []) {
 
 //A: Handle the _audioPacketsQueue while receiving audio packets.
 setInterval(() => {
-    if (_audioPacketsQueue.length == 0) return;
+    let delay=0;
+    Object.keys(_audioPacketsQueue).forEach(peerId => {
+        let peerAudioPackets = _audioPacketsQueue[peerId];
 
-    if (_audioPacketsQueue.length >= CALL_NET_SETTINGS.packets_to_play) {
-        let audioChunksToPlay = _audioPacketsQueue.slice(0, CALL_NET_SETTINGS.packets_to_play);
-        if (_audioPacketsQueue.length <= CALL_NET_SETTINGS.packets_to_play) {
-            _audioPacketsQueue = [];
-        } else {
-            _audioPacketsQueue = _audioPacketsQueue.slice(CALL_NET_SETTINGS.packets_to_play, _audioPacketsQueue.length);
+        if (peerAudioPackets.length == 0) return;
+
+        if (peerAudioPackets.length >= CALL_NET_SETTINGS.packets_to_play) {
+
+            let audioChunksToPlay = peerAudioPackets.slice(0, CALL_NET_SETTINGS.packets_to_play);
+            if (peerAudioPackets.length <= CALL_NET_SETTINGS.packets_to_play) {
+                peerAudioPackets = [];
+            } else {
+                peerAudioPackets = peerAudioPackets.slice(CALL_NET_SETTINGS.packets_to_play, peerAudioPackets.length);
+            }
+
+            let startChunk = audioChunksToPlay[0];
+            if (!audioChunksToPlay[0].isHeaderBlob && _lastHeaderBlob) {
+                startChunk = _lastHeaderBlob;
+            }
+
+            audioChunksToPlay = audioChunksToPlay.filter(x => !x.isHeaderBlob);
+            audioChunksToPlay.unshift(startChunk);
+
+            let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: "audio/ogg; codecs=opus" });
+            
+            const arrayBuffer = new FileReader();
+
+            arrayBuffer.onloadend = () => {
+                audioContext.decodeAudioData(arrayBuffer.result, (buffer) => {
+                    printToConsole("Playing audio");
+                    playAudioBuffer(buffer, delay);
+                });
+            };
+            arrayBuffer.readAsArrayBuffer(concatChunks);
+
+            _audioPacketsQueue[peerId] = peerAudioPackets;
         }
-
-        let startChunk = audioChunksToPlay[0];
-        if (!audioChunksToPlay[0].isHeaderBlob && _lastHeaderBlob) {
-            startChunk = _lastHeaderBlob;
-        }
-
-        audioChunksToPlay = audioChunksToPlay.filter(x => !x.isHeaderBlob);
-        audioChunksToPlay.unshift(startChunk);
-
-		let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: "audio/ogg; codecs=opus" });
-        
-        const arrayBuffer = new FileReader();
-
-        arrayBuffer.onloadend = () => {
-            audioContext.decodeAudioData(arrayBuffer.result, (buffer) => {
-              playAudioBuffer(buffer);
-            });
-        };
-
-        arrayBuffer.readAsArrayBuffer(concatChunks);
-    } 
+        delay++;
+    });
 }, 1);

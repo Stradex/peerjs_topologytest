@@ -180,10 +180,10 @@ function stopRecordingAudio() {
     inputListening = false;
 }
 
-function playAudioBuffer(buffer) {
+function playAudioBuffer(buffer, delay=1) {
   const source = audioContext.createBufferSource();
   source.buffer = buffer;
-  source.start();
+  source.start(delay);
 
   source.connect(audioContext.destination);
   source.onended = () => {

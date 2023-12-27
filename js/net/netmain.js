@@ -234,8 +234,7 @@ function processNetMessage(dataReceived) {
             printToConsole(`${dataReceived.from}: ${dataReceived.msg}`);
         break;
         case 'audio':
-            //printToConsole(`Receiving audio from: ${dataReceived.from}`);
-            callReceivedAudioData(dataReceived.audioBlob, dataReceived.headerBlob, dataReceived.dbAverage);
+            callReceivedAudioData(dataReceived.audioBlob, dataReceived.headerBlob, dataReceived.dbAverage, dataReceived.from);
         break;
     }
 }
