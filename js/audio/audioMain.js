@@ -2,11 +2,12 @@
 
 //============================================================
 //S: mediaRecorder
-mediaRecorder= null;
-mediaRecorderAudioURL= null; //U: el resultado
+mediaRecorder = null;
+mediaRecorderAudioURL = null; //U: el resultado
 inputListening = false;
+let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-function mediaRecorderStart(stream) {
+function mediaRecorderStart(stream, datareceived_ms=200) {
 	if (mediaRecorder!=null) {
         printToConsole(`mediaRecorder already started`);
 		return;
@@ -28,12 +29,13 @@ function mediaRecorderStart(stream) {
   mediaRecorder["onAudioChunkUpdated"] = () => {};
 
 	mediaRecorder.ondataavailable = (e) => {
-
+    let headerBlob = (mediaRecorderChunks.length == 0);
     mediaRecorderChunks.push(e.data);
-    mediaRecorder.onAudioChunkUpdated(e, mediaRecorderChunks);
+    let blob = new Blob([e.data], { type: "audio/ogg; codecs=opus" });
+    mediaRecorder.onAudioChunkUpdated(blob, mediaRecorderChunks, headerBlob);
 	};
 
-	mediaRecorder.start();
+	mediaRecorder.start(datareceived_ms);
 	console.log("Grabando");
 }
 
@@ -138,4 +140,15 @@ function startRecordingAudio(onSilenceFunc, onSpeakFunc, onReceiveDataFunc = _=>
 
 function stopRecordingAudio() {
     inputListening = false;
+}
+
+function playAudioBuffer(buffer) {
+  const source = audioContext.createBufferSource();
+  source.buffer = buffer;
+  source.start();
+
+  source.connect(audioContext.destination);
+  source.onended = () => {
+    printToConsole('Playback ended');
+  };
 }

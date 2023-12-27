@@ -2,6 +2,12 @@
 const LOCAL_PEER_INDEX = -1;
 const P2P_HASH_KEY = "PA2023_";
 
+const NET_OPTS = {
+    snapshot_ms: 5,
+    max_packet_bytes: 128,
+    max_packets_at_once: 2
+};
+
 let _currentPeer = null;
 
 let _userInfo = {
@@ -229,7 +235,7 @@ function processNetMessage(dataReceived) {
         break;
         case 'audio':
             printToConsole(`Receiving audio from: ${dataReceived.from}`);
-            callReceivedAudioData(dataReceived.audioBlob);
+            callReceivedAudioData(dataReceived.audioBlob, dataReceived.headerBlob);
         break;
     }
 }
