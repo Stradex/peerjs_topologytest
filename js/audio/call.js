@@ -106,7 +106,7 @@ setInterval(() => {
     Object.keys(_audioPacketsQueue).forEach(peerId => {
         let peerAudioPackets = _audioPacketsQueue[peerId];
 
-        if (peerAudioPackets.length == 0) return;
+        if (!peerAudioPackets || peerAudioPackets.length == 0) return;
 
         if (peerAudioPackets.length >= CALL_NET_SETTINGS.packets_to_play) {
 

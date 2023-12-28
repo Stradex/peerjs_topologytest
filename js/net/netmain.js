@@ -4,7 +4,9 @@ const P2P_HASH_KEY = "PA2023_";
 
 const NET_OPTS = {
     snapshot_ms: 100,
-    max_packet_bytes: 4096
+    min_snapshot_ms: 40,
+    max_packet_bytes: 4096,
+    packets_delay_ms: 10,
 };
 
 let _currentPeer = null;
@@ -24,7 +26,7 @@ let _packetsQueue = [];
 
 function netInit() {
     let serverToConnect = getServerPeerIDFromHash();
-    setInterval(netSendSnapshot, NET_OPTS.snapshot_ms);
+    setTimeout(netSendSnapshot, NET_OPTS.snapshot_ms);
     if (serverToConnect) {
         joinServer(serverToConnect, "no-name");
     }
@@ -46,18 +48,25 @@ function sendDataToPeerID(peerID, dataToSend) {
     }
 }
 
-function netSendSnapshot() {
-    if (!_currentPeer) return;
+function netSendSnapshot(nextSnapshotMs) {
+    if (!_currentPeer) {
+        setTimeout(netSendSnapshot, NET_OPTS.snapshot_ms);
+        return;
+    }
+
     let bytesSent = 0;
-    while(bytesSent <= NET_OPTS.max_packet_bytes && _packetsQueue.length > 0) 
+    let delayMs = 0;
+    while(bytesSent <= NET_OPTS.max_packet_bytes && _packetsQueue.length > 0 && (NET_OPTS.snapshot_ms-delayMs) >= NET_OPTS.min_snapshot_ms) 
     {
         let currentPacket = _packetsQueue.shift();
         bytesSent += roughSizeOfObject(currentPacket);
-        sendDataToPeerID(currentPacket.pid, currentPacket.data);   
+        setTimeout(() => sendDataToPeerID(currentPacket.pid, currentPacket.data),delayMs+1);
+        delayMs+=NET_OPTS.packets_delay_ms;    
     }
     if (bytesSent > 0) {
-        //printToConsole(`bytes sent: ${bytesSent}`);
+        printToConsole(`bytes sent: ${bytesSent}`);
     }
+    setTimeout(netSendSnapshot, Math.max(NET_OPTS.min_snapshot_ms, (NET_OPTS.snapshot_ms-delayMs)));
 }
 
 function netSendData(dataToSend, netRoute = null) { //U: Send message to peers by connections arrays.
