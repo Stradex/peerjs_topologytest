@@ -5,7 +5,7 @@
 
 const AUDIO_SETTINGS = {
   channels: 1,
-  codec: "audio/ogg; codecs=opus",
+  codec: "audio/webm;codecs=opus",
   sampleSize: 8,
   sampleRate: 8192,
   dBSampleSize: 10
@@ -36,7 +36,10 @@ function mediaRecorderStart(stream, datareceived_ms=200) {
 
 	//SEE: https://github.com/mdn/dom-examples/tree/main/media/web-dictaphone
 	//SEE: https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder
-	mediaRecorder= new MediaRecorder(stream);
+	mediaRecorder= new MediaRecorder(stream, {
+    mimeType: AUDIO_SETTINGS.codec,
+    bitsPerSecond: AUDIO_SETTINGS.sampleRate
+  });
 
 	var mediaRecorderChunks= []; //U: guardar a medida que graba
 

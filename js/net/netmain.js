@@ -3,9 +3,8 @@ const LOCAL_PEER_INDEX = -1;
 const P2P_HASH_KEY = "PA2023_";
 
 const NET_OPTS = {
-    snapshot_ms: 5,
-    max_packet_bytes: 128,
-    max_packets_at_once: 2
+    snapshot_ms: 100,
+    max_packet_bytes: 4096
 };
 
 let _currentPeer = null;
@@ -21,12 +20,18 @@ let _clientsToEmu=0;
 let _clients = []; //U: _userInfo for each peer.
 let _connections = {};
 let _serverTopology={};
+let _packetsQueue = [];
 
 function netInit() {
     let serverToConnect = getServerPeerIDFromHash();
+    setInterval(netSendSnapshot, NET_OPTS.snapshot_ms);
     if (serverToConnect) {
         joinServer(serverToConnect, "no-name");
     }
+}
+
+function addDataToSnapshot(peerID, dataToSend) {
+    _packetsQueue.push({pid: peerID, data: dataToSend});
 }
 
 function sendDataToPeerID(peerID, dataToSend) {
@@ -41,6 +46,20 @@ function sendDataToPeerID(peerID, dataToSend) {
     }
 }
 
+function netSendSnapshot() {
+    if (!_currentPeer) return;
+    let bytesSent = 0;
+    while(bytesSent <= NET_OPTS.max_packet_bytes && _packetsQueue.length > 0) 
+    {
+        let currentPacket = _packetsQueue.shift();
+        bytesSent += roughSizeOfObject(currentPacket);
+        sendDataToPeerID(currentPacket.pid, currentPacket.data);   
+    }
+    if (bytesSent > 0) {
+        //printToConsole(`bytes sent: ${bytesSent}`);
+    }
+}
+
 function netSendData(dataToSend, netRoute = null) { //U: Send message to peers by connections arrays.
     if (!_currentPeer) return;
 
@@ -48,10 +67,10 @@ function netSendData(dataToSend, netRoute = null) { //U: Send message to peers b
         netRoute = netRoute.map(x => x); //create local copy.
         let peerID = netRoute.shift();
         if (netRoute.length == 0) {
-            sendDataToPeerID(peerID, dataToSend);
+            addDataToSnapshot(peerID, dataToSend);
         } else {
             printToConsole("Sending forward to: " + peerID);
-            sendDataToPeerID(peerID, {
+            addDataToSnapshot(peerID, {
                 tag: "forward",
                 route: netRoute,
                 data: dataToSend,
@@ -59,7 +78,7 @@ function netSendData(dataToSend, netRoute = null) { //U: Send message to peers b
             });
         }
     } else if (_userInfo.peerClients && _userInfo.peerClients.forwardTo) {
-        _userInfo.peerClients.forwardTo.forEach(pid => sendDataToPeerID(pid, dataToSend));
+        _userInfo.peerClients.forwardTo.forEach(pid => addDataToSnapshot(pid, dataToSend));
     }
 }
 

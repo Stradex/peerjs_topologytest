@@ -127,7 +127,7 @@ setInterval(() => {
 
             _audioPacketsQueue[peerId] = peerAudioPackets;
 
-            let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: "audio/ogg; codecs=opus" });
+            let concatChunks = new Blob(audioChunksToPlay.map(x => x.blob), { type: AUDIO_SETTINGS.codec });
             
             const arrayBuffer = new FileReader();
 
