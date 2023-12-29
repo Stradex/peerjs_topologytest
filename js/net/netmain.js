@@ -150,9 +150,10 @@ function getLocalPeerIDFromHash() {
     return P2P_HASH_KEY + window.location.hash.substring(1).split("&server=")[0];
 }
 function getServerPeerIDFromHash() {
+    let upperCaseHash = window.location.hash.substring(1).toUpperCase();
     if (!window.location.hash) return null;
-    if (!window.location.hash.substring(1).split("&server=")[1]) return null;
-    return window.location.hash.substring(1).split("&server=")[1];
+    if (!upperCaseHash.split("&SERVER=")[1]) return null;
+    return upperCaseHash.split("&SERVER=")[1];
 }
 
 function emulateNewClient(clientNumber) {

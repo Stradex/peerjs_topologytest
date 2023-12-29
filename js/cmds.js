@@ -11,8 +11,22 @@ let CMDS = [
     {name: "end call", usage: "end call <peers to end call with>", func:cmd_call_end},
     {name: "root peer", usage: "", func:cmd_get_root_peer},
     {name: "help", usage: "help <Command Name>", func: cmd_help},
+    {name: "reload", usage: "reload <New hash data>", func: cmd_reload_site},
     {name: "clear", usage: "", func: clearConsole}
 ];
+
+function cmd_reload_site(newHashData) {
+    const url = new URL(location.href);
+    let urlStr = "";
+    if (newHashData) {
+        url.hash="";
+        urlStr = `${url}#${newHashData.toUpperCase()}`;
+    } else {
+        urlStr = `${url}`;
+    }
+    window.location.href = urlStr;
+    location.reload();
+}
 
 function cmd_net_cmd(netCmd, peerId) {
     if (!isNetServer()) {
