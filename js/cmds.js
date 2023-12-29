@@ -5,12 +5,17 @@ let CMDS = [
     {name: "local peer", usage: "", func: cmd_get_local_peer},
     {name: "server peer", usage: "", func: cmd_get_server_peer},
     {name: "test server", usage: "test server <Number of Clients>", func:cmd_test_server},
-    {name: "send", usage: "send <message>, <route of peers separated by comma>", func:cmd_send_message},
+    {name: "say", usage: "say <message>, <route of peers separated by comma>", func:cmd_send_message},
     {name: "start call", usage: "start call <route of peers separated by comma>", func:cmd_call_start},
     {name: "end call", usage: "end call <peers to end call with>", func:cmd_call_end},
+    {name: "root peer", usage: "", func:cmd_get_root_peer},
     {name: "help", usage: "help <Command Name>", func: cmd_help},
     {name: "clear", usage: "", func: clearConsole}
 ];
+
+function cmd_get_root_peer() {
+    printToConsole(`Root peer id: ${getRootPeerFromTopology(getServerTopology())}`);
+}
 
 function cmd_call_start() {
     
@@ -39,7 +44,6 @@ function cmd_send_message(message)
     netSendData({
         tag: 'msg',
         global: !route || route.length == 0,
-        from: getLocalPeerIDFromHash(),
         msg: message.trim()
     }, route);
 }

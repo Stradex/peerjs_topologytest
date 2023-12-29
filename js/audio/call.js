@@ -16,7 +16,6 @@ function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
             netSendData({
                 tag: 'audio',
                 global: true,
-                from: getLocalPeerIDFromHash(),
                 audioBlob: base64Data,
                 headerBlob: isHeaderBlob,
                 dbAverage: currentDBAverage
@@ -28,7 +27,6 @@ function callOnDataAvailable(blob, audioChunks, isHeaderBlob) {
                 netSendData({
                     tag: 'audio',
                     global: false,
-                    from: getLocalPeerIDFromHash(),
                     audioBlob: base64Data,
                     headerBlob: isHeaderBlob,
                     dbAverage: currentDBAverage

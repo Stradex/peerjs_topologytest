@@ -48,7 +48,7 @@ function sendDataToPeerID(peerID, dataToSend) {
     }
 }
 
-function netSendSnapshot(nextSnapshotMs) {
+function netSendSnapshot() {
     if (!_currentPeer) {
         setTimeout(netSendSnapshot, NET_OPTS.snapshot_ms);
         return;
@@ -61,33 +61,42 @@ function netSendSnapshot(nextSnapshotMs) {
         let currentPacket = _packetsQueue.shift();
         bytesSent += roughSizeOfObject(currentPacket);
         setTimeout(() => sendDataToPeerID(currentPacket.pid, currentPacket.data),delayMs+1);
-        delayMs+=NET_OPTS.packets_delay_ms;    
+        delayMs+=NET_OPTS.packets_delay_ms;
     }
     if (bytesSent > 0) {
-        printToConsole(`bytes sent: ${bytesSent}`);
+        //printToConsole(`bytes sent: ${bytesSent}`);
     }
     setTimeout(netSendSnapshot, Math.max(NET_OPTS.min_snapshot_ms, (NET_OPTS.snapshot_ms-delayMs)));
 }
 
-function netSendData(dataToSend, netRoute = null) { //U: Send message to peers by connections arrays.
-    if (!_currentPeer) return;
+function netSendData(dataToSend, netRoute = null, firstSender = true) { //U: Send message to peers by connections arrays.
+    if (!_currentPeer || !_userInfo.conn || !getLocalPeerID()) return;
+
+    let currentDataToSend = {...dataToSend};
+
+    if (!currentDataToSend["from"]) {
+        currentDataToSend["from"] = getLocalPeerID();
+    }
 
     if (netRoute && netRoute.length > 0) {
         netRoute = netRoute.map(x => x); //create local copy.
         let peerID = netRoute.shift();
         if (netRoute.length == 0) {
-            addDataToSnapshot(peerID, dataToSend);
+            addDataToSnapshot(peerID, currentDataToSend);
         } else {
             printToConsole("Sending forward to: " + peerID);
             addDataToSnapshot(peerID, {
                 tag: "forward",
                 route: netRoute,
-                data: dataToSend,
+                data: currentDataToSend,
                 server: _userInfo.server
             });
         }
+    } else if (firstSender && currentDataToSend.global && !_userInfo.server) {
+        let rootPeerID = getRootPeerFromTopology(getServerTopology());
+        addDataToSnapshot(rootPeerID, currentDataToSend);
     } else if (_userInfo.peerClients && _userInfo.peerClients.forwardTo) {
-        _userInfo.peerClients.forwardTo.forEach(pid => addDataToSnapshot(pid, dataToSend));
+        _userInfo.peerClients.forwardTo.forEach(pid => addDataToSnapshot(pid, currentDataToSend));
     }
 }
 
@@ -100,6 +109,13 @@ function clientsToTopologyArr(clientsArray) {
     
     return topologyArray;
 }
+function getRootPeerFromTopology(topologyObj) {
+    return Object.keys(topologyObj).find(peerID => topologyObj[peerID].depth == 0);
+} 
+
+function isRootPeer(peerId, topologyObj) {
+    return topologyObj && topologyObj[peerId] && topologyObj[peerId].depth && topologyObj[peerId].depth == 0;
+}
 
 function setServerTopology(topologyObj) {
     _serverTopology = topologyObj;
@@ -110,16 +126,8 @@ function getServerTopology() {
 }
 
 function updateLocalPeersFromTopology(topologyObj) {
-    if (!_userInfo.conn || !_userInfo.conn.peer || !topologyObj[_userInfo.conn.peer]) return;
-    _userInfo.peerClients = topologyObj[_userInfo.conn.peer];
-    setTimeout(() => {
-        netSendData({
-            tag: 'topology',
-            server: true,
-            global: true, //if message should be sent to all clients
-            data: getServerTopology()
-        });
-    }, 1);
+    if (!_userInfo.conn || !getLocalPeerID() || !topologyObj[getLocalPeerID()]) return;
+    _userInfo.peerClients = topologyObj[getLocalPeerID()];
 }
 
 function setClientsToEmulate(numberOfClients) {
@@ -128,6 +136,10 @@ function setClientsToEmulate(numberOfClients) {
 function getClientsToEmulate() {
     return _clientsToEmu;
 } 
+
+function getLocalPeerID() {
+    return _userInfo.conn.peer;
+}
 
 function getLocalPeerIDFromHash() {
     if (!window.location.hash) return P2P_HASH_KEY + "S";
@@ -209,9 +221,10 @@ function createServer(serverName) {
             netSendData({
                 tag: 'topology',
                 server: true,
+                global: true,
                 data: getServerTopology()
             });
-        }, 25000);
+        }, 5000);
     });
 
     //CLIENT CONNECTION
@@ -220,7 +233,7 @@ function createServer(serverName) {
        
         remoteConn.on('open', function() {
             remoteConn.on('data', function(data) {
-                processNetMessage(data);
+                processNetMessage(data, remoteConn.peer);
             });
         });
 
@@ -241,12 +254,20 @@ function createServer(serverName) {
     });
 }
 
-function processNetMessage(dataReceived) {
+function processNetMessage(dataReceived, peerSender) {
 
     if (!dataReceived || !dataReceived.tag) return;
 
     if (dataReceived.global) { //A: Spread data to children peers in the tree
-        netSendData(dataReceived);
+        netSendData(dataReceived, null, false);
+
+
+        //A: Avoid receiving the same packet peer sended globally.
+        if (dataReceived.from.toLowerCase() == getLocalPeerID().toLowerCase()) {
+            //printToConsole(`Packet from: ${dataReceived.from}`);
+            return;
+        }
+
     }
 
     switch(dataReceived.tag) {
@@ -277,31 +298,33 @@ function joinServer(peerID, userName) {
 
     _currentPeer.on('open', (id) => {
         printToConsole(`Peer created with ID: ${id}`)
-        printToConsole(`Trying to connecto to peer ID: ${peerID}`);
-        let conn = _currentPeer.connect(peerID, {label: _userInfo.name});
+        printToConsole(`Trying to connect to peer ID: ${peerID}`);
+        let serverConn = _currentPeer.connect(peerID, {label: _userInfo.name});
         _userInfo.conn = {peer: id};
 
         _currentPeer.on('connection', (remoteConn) => {
             remoteConn.on('data', function(data) {
-                processNetMessage(data);
+                processNetMessage(data, remoteConn.peer);
             });
+            _connections[remoteConn.peer] = {conn: remoteConn};
         });
 
-        conn.on('open', () => {
-            conn.on('close', function() {
+        serverConn.on('open', () => {
+            serverConn.on('close', function() {
                 printToConsole(`Connection closed with: ${peerID}`);
             });
-            conn.on('error', function(err) {
+            serverConn.on('error', function(err) {
                 printToConsole(`Error trying to connect with: ${peerID}\nError: ${err}`);
             });
 
-            conn.on('data', function(data) {
-                processNetMessage(data);
+            serverConn.on('data', function(data) {
+                processNetMessage(data, peerID);
             });
     
+            _connections[peerID] = {conn: serverConn};
+
             printToConsole(`Connected to server: ${peerID} as ${userName}`);
         });
-
     });
 }
 
