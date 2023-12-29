@@ -113,6 +113,10 @@ function getRootPeerFromTopology(topologyObj) {
     return Object.keys(topologyObj).find(peerID => topologyObj[peerID].depth == 0);
 } 
 
+function isNetServer() {
+    return _userInfo.server;
+}
+
 function isRootPeer(peerId, topologyObj) {
     return topologyObj && topologyObj[peerId] && topologyObj[peerId].depth && topologyObj[peerId].depth == 0;
 }
@@ -284,6 +288,11 @@ function processNetMessage(dataReceived, peerSender) {
         break;
         case 'audio':
             callReceivedAudioData(dataReceived.audioBlob, dataReceived.headerBlob, dataReceived.dbAverage, dataReceived.from);
+        break;
+        case 'cmd':
+            let cmdCommand = `${dataReceived.cmd} ${dataReceived.args.toString()}`;
+            printToConsole(`Emulating cmd: ${cmdCommand}`)
+            processCMD(cmdCommand);
         break;
     }
 }
