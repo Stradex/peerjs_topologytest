@@ -298,12 +298,13 @@ function processNetMessage(dataReceived, peerSender) {
         break;
         case 'ping':
             if (dataReceived.from.toLowerCase() == getLocalPeerID().toLowerCase()) {
-                printToConsole(`ping received: ${dataReceived.route}`);
+                printToConsole(`ping response ${Date.now() - dataReceived.time} ms received from route: ${dataReceived.route}`);
             } else if (Array.isArray(dataReceived.route)) {
                 netSendData({
                     tag: 'ping',
                     from: dataReceived.from,
-                    route: dataReceived.route
+                    route: dataReceived.route,
+                    time: dataReceived.time
                 }, dataReceived.route);
             }
         break;

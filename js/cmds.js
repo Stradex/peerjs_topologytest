@@ -31,6 +31,7 @@ function cmd_ping() {
     netSendData({
         tag: 'ping',
         global: !pingRoute || pingRoute.length == 0,
+        time: Date.now(),
         route: pingRoute ?
             [...pingRoute.slice(0, pingRoute.length-1).reverse(), getLocalPeerID()]
             : [getLocalPeerID()]
