@@ -45,6 +45,9 @@ function sendDataToPeerID(peerID, dataToSend) {
             tmpConn.send(dataToSend);
             _connections[peerID] = {conn: tmpConn};
         });
+        tmpConn.on('error', (err) => {
+            printToConsole(`Error connecting with peer ${peerID} - error: ${err}`);
+        });
     }
 }
 
@@ -73,21 +76,20 @@ function netSendData(dataToSend, netRoute = null, firstSender = true) { //U: Sen
     if (!_currentPeer || !_userInfo.conn || !getLocalPeerID()) return;
 
     let currentDataToSend = {...dataToSend};
-
+    let currentNetRoute = netRoute ? netRoute.slice() : null;
     if (!currentDataToSend["from"]) {
         currentDataToSend["from"] = getLocalPeerID();
     }
 
-    if (netRoute && netRoute.length > 0) {
-        netRoute = netRoute.map(x => x); //create local copy.
-        let peerID = netRoute.shift();
-        if (netRoute.length == 0) {
+    if (currentNetRoute && currentNetRoute.length > 0) {
+        currentNetRoute = currentNetRoute.map(x => x); //create local copy.
+        let peerID = currentNetRoute.shift();
+        if (currentNetRoute.length == 0) {
             addDataToSnapshot(peerID, currentDataToSend);
         } else {
-            printToConsole("Sending forward to: " + peerID);
             addDataToSnapshot(peerID, {
                 tag: "forward",
-                route: netRoute,
+                route: currentNetRoute,
                 data: currentDataToSend,
                 server: _userInfo.server
             });
@@ -266,7 +268,6 @@ function processNetMessage(dataReceived, peerSender) {
     if (dataReceived.global) { //A: Spread data to children peers in the tree
         netSendData(dataReceived, null, false);
 
-
         //A: Avoid receiving the same packet peer sended globally.
         if (dataReceived.from.toLowerCase() == getLocalPeerID().toLowerCase()) {
             //printToConsole(`Packet from: ${dataReceived.from}`);
@@ -295,6 +296,17 @@ function processNetMessage(dataReceived, peerSender) {
             printToConsole(`Emulating cmd: ${cmdCommand}`)
             processCMD(cmdCommand);
         break;
+        case 'ping':
+            if (dataReceived.from.toLowerCase() == getLocalPeerID().toLowerCase()) {
+                printToConsole(`ping received: ${dataReceived.route}`);
+            } else if (Array.isArray(dataReceived.route)) {
+                netSendData({
+                    tag: 'ping',
+                    from: dataReceived.from,
+                    route: dataReceived.route
+                }, dataReceived.route);
+            }
+        break;
     }
 }
 
@@ -313,10 +325,11 @@ function joinServer(peerID, userName) {
         _userInfo.conn = {peer: id};
 
         _currentPeer.on('connection', (remoteConn) => {
-            remoteConn.on('data', function(data) {
-                processNetMessage(data, remoteConn.peer);
+            remoteConn.on('open', function() {
+                remoteConn.on('data', function(data) {
+                    processNetMessage(data, remoteConn.peer);
+                });
             });
-            _connections[remoteConn.peer] = {conn: remoteConn};
         });
 
         serverConn.on('open', () => {

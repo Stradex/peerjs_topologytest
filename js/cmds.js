@@ -10,10 +10,32 @@ let CMDS = [
     {name: "start call", usage: "start call <route of peers separated by comma>", func:cmd_call_start},
     {name: "end call", usage: "end call <peers to end call with>", func:cmd_call_end},
     {name: "root peer", usage: "", func:cmd_get_root_peer},
+    {name: "ping", usage: "ping <route of peers separated by comma>", func:cmd_ping},
     {name: "help", usage: "help <Command Name>", func: cmd_help},
     {name: "reload", usage: "reload <New hash data>", func: cmd_reload_site},
     {name: "clear", usage: "", func: clearConsole}
 ];
+
+function cmd_ping() {
+    let pingRoute = (Array.prototype.slice.call(arguments))
+        .filter(x => x.trim().length > 0)
+        .map(x => P2P_HASH_KEY + x.trim().toUpperCase());
+
+
+    if (pingRoute.length > 0) {
+        printToConsole(`sending ping to route: ${pingRoute} - return route:${[...pingRoute.slice(0, pingRoute.length-1).reverse(), getLocalPeerID()]}`);
+    } else {
+        printToConsole(`sending ping to all peers`);
+    }
+
+    netSendData({
+        tag: 'ping',
+        global: !pingRoute || pingRoute.length == 0,
+        route: pingRoute ?
+            [...pingRoute.slice(0, pingRoute.length-1).reverse(), getLocalPeerID()]
+            : [getLocalPeerID()]
+    }, pingRoute);
+}
 
 function cmd_reload_site(newHashData) {
     const url = new URL(location.href);
@@ -34,11 +56,11 @@ function cmd_net_cmd(netCmd, peerId) {
         return;
     }
 
+    let route = peerId ? [P2P_HASH_KEY + peerId.trim().toUpperCase()] : [];
+    
     let cmdArgs = (Array.prototype.slice.call(arguments))
                     .slice(2, arguments.length)
                     .map(arg => arg.trim());
-
-    let route = peerId ? [P2P_HASH_KEY + peerId.trim().toUpperCase()] : [];
 
     netSendData({
         tag: 'cmd',
