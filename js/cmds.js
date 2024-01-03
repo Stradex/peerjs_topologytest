@@ -69,7 +69,6 @@ function cmd_net_cmd(netCmd, peerId) {
         cmd: netCmd,
         args: cmdArgs
     }, route);
-
 }
 
 function cmd_get_root_peer() {

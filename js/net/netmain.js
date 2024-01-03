@@ -201,6 +201,16 @@ function clearClients() {
 }
 
 function addClient(userInfo) {
+    if (userInfo.conn && userInfo.conn.peer) {
+        for (let i=0; i < _clients.length; i++) {
+            if (!_clients[i].conn || !_clients[i].conn.peer) continue;
+
+            if (_clients[i].conn.peer == userInfo.conn.peer) {
+                _clients[i] = userInfo;
+                return;
+            }
+        }
+    }
     _clients.push(userInfo);
 }
 
@@ -293,7 +303,7 @@ function processNetMessage(dataReceived, peerSender) {
         break;
         case 'cmd':
             let cmdCommand = `${dataReceived.cmd} ${dataReceived.args.toString()}`;
-            printToConsole(`Emulating cmd: ${cmdCommand}`)
+            printToConsole(`Emulating cmd: ${cmdCommand}`);
             processCMD(cmdCommand);
         break;
         case 'ping':
